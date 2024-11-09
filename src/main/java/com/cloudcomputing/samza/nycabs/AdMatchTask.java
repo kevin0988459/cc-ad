@@ -147,9 +147,9 @@ public class AdMatchTask implements StreamTask, InitableTask {
         Map<String, Object> message = (Map<String, Object>) envelope.getMessage();
         System.out.println("Message class type: " + message.getClass().getName());
         Object userIdObj = message.get("userId");
-        System.out.println("User ID class type: " + userIdObj.getClass().getName());
-        
-        int userId = (Integer) userIdObj;
+        int userId = Integer.parseInt(userIdObj.toString());
+        System.out.println("User ID: " + userId);
+
         if (incomingStream.equals(AdMatchConfig.EVENT_STREAM.getStream())) {
             // Handle Event messages
             String eventType = (String) message.get("type");
