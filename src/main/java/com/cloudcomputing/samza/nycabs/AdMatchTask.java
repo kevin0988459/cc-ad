@@ -213,9 +213,13 @@ public class AdMatchTask implements StreamTask, InitableTask {
      */
     private void handleRiderInterest(Map<String, Object> event) {
         int userId = (Integer) event.get("userId");
+        System.out.println("Processing RIDER_INTEREST event for userId: " + userId);
         String interest = (String) event.get("interest");
+        System.out.println("Interest: " + interest);
         int duration = (Integer) event.get("duration");
-        System.out.println("Processing RIDER_INTEREST event for userId: " + userId + " with interest: " + interest);
+        System.out.println("Duration: " + duration);
+        
+
         try {
             // int userId = (Integer) event.get("userId");
             // String interest = (String) event.get("interest");
@@ -249,6 +253,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
             Map<String, Object> userProfile = userInfo.get(userId);
 
             @SuppressWarnings("unchecked")
+
             Set<String> userTags = (Set<String>) userProfile.get("tags");
             String userInterest = (String) userProfile.getOrDefault("interest", "");
             String device = (String) userProfile.getOrDefault("device", "");
