@@ -237,12 +237,11 @@ public class AdMatchTask implements StreamTask, InitableTask {
     private void handleRideRequest(Map<String, Object> event, MessageCollector collector) {
         try {
             int userId = (Integer) event.get("userId");
-
+            System.out.println("Processing Rider Request for userId " + userId);
             // Retrieve user profile
             Map<String, Object> userProfile = userInfo.get(userId);
-
+            System.out.println("User profile for userId " + userId + ": " + userProfile);
             @SuppressWarnings("unchecked")
-
             Set<String> userTags = (Set<String>) userProfile.get("tags");
             String userInterest = (String) userProfile.getOrDefault("interest", "");
             System.out.println("User interest for userId " + userId + ": " + userInterest);
