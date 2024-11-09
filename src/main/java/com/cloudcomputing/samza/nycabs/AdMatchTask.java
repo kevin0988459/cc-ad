@@ -158,7 +158,6 @@ public class AdMatchTask implements StreamTask, InitableTask {
         if (message instanceof Map) {
             Map<String, Object> event = (Map<String, Object>) message;
             String type = (String) event.get("type");
-            System.out.println("Processing event of type: " + type);
             switch (type) {
                 case "RIDER_STATUS":
                     handleRiderStatus(event);
@@ -238,29 +237,20 @@ public class AdMatchTask implements StreamTask, InitableTask {
 
         try {
             int userId = (Integer) event.get("clientId");
-            System.out.println("Processing Rider Request for userId " + userId);
             // Retrieve user profile
             Map<String, Object> userProfile = userInfo.get(userId);
-            System.out.println("User profile for userId " + userId + ": " + userProfile);
             @SuppressWarnings("unchecked")
             Set<String> userTags = (Set<String>) userProfile.get("tags");
             String userInterest = (String) userProfile.getOrDefault("interest", "");
-            System.out.println("User interest for userId " + userId + ": " + userInterest);
             String device = (String) userProfile.getOrDefault("device", "");
-            System.out.println("User device for userId " + userId + ": " + device);
             int travelCount = (Integer) userProfile.getOrDefault("travel_count", 0);
-            System.out.println("User travel count for userId " + userId + ": " + travelCount);
             int age = (Integer) userProfile.getOrDefault("age", 0);
-            System.out.println("User age for userId " + userId + ": " + age);
             double userLat = (Double) event.get("latitude");
-            System.out.println("User latitude for userId " + userId + ": " + userLat);
             double userLon = (Double) event.get("longitude");
-            System.out.println("User longitude for userId " + userId + ": " + userLon);
             // Collect all possible stores matching user's tags
             List<Map<String, Object>> candidateStores = getCandidateStores(userTags);
 
             if (candidateStores.isEmpty()) {
-                System.out.println("No candidate stores found for userId: " + userId);
                 return;
             }
 
@@ -280,7 +270,6 @@ public class AdMatchTask implements StreamTask, InitableTask {
                     bestStore = entry.getKey();
                 }
             }
-
             if (bestStore != null) {
                 // Prepare the advertisement message
                 Map<String, Object> adMessage = new HashMap<>();
@@ -289,7 +278,6 @@ public class AdMatchTask implements StreamTask, InitableTask {
                 adMessage.put("name", bestStore.get("name"));
                 // Send to ad-stream
                 collector.send(new OutgoingMessageEnvelope(AdMatchConfig.AD_STREAM, adMessage));
-                System.out.println("Sent ad for userId " + userId + " to ad-stream: " + adMessage);
             }
 
         } catch (Exception e) {
