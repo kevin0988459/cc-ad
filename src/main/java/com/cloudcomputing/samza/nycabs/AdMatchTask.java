@@ -212,24 +212,16 @@ public class AdMatchTask implements StreamTask, InitableTask {
      * Handles the RIDER_INTEREST event to update userInfo.
      */
     private void handleRiderInterest(Map<String, Object> event) {
-        int userId = (Integer) event.get("userId");
-        System.out.println("Processing RIDER_INTEREST event for userId: " + userId);
-        String interest = (String) event.get("interest");
-        System.out.println("Interest: " + interest);
-        int duration = (Integer) event.get("duration");
-        System.out.println("Duration: " + duration);
-        
-
         try {
-            // int userId = (Integer) event.get("userId");
-            // String interest = (String) event.get("interest");
-            // int duration = (Integer) event.get("duration");
+            int userId = (Integer) event.get("userId");
+            String interest = (String) event.get("interest");
+            int duration = (Integer) event.get("duration");
 
             // Only update interest if duration > 5 minutes
             if (duration > 300000) {
-                // Retrieve existing user profile
                 Map<String, Object> userProfile = userInfo.get(userId);
-
+                System.out.println("User profile: " + userProfile);
+                
                 // Update user interest
                 userProfile.put("interest", interest);
 
