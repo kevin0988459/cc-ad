@@ -220,11 +220,9 @@ public class AdMatchTask implements StreamTask, InitableTask {
             // Only update interest if duration > 5 minutes
             if (duration > 300000) {
                 Map<String, Object> userProfile = userInfo.get(userId);
-                System.out.println("User profile: " + userProfile);
-                
                 // Update user interest
                 userProfile.put("interest", interest);
-
+                System.out.println("Updated interest for userId " + userId + ": " + interest);
                 // Update the userInfo KV store
                 userInfo.put(userId, userProfile);
             }
