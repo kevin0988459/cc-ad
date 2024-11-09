@@ -155,11 +155,11 @@ public class AdMatchTask implements StreamTask, InitableTask {
          */
         String incomingStream = envelope.getSystemStreamPartition().getStream();
         Object message = envelope.getMessage();
-
+        System.out.println("Processing message: " + message + " of type: " + message.getClass().getName());
         if (message instanceof Map) {
             Map<String, Object> event = (Map<String, Object>) message;
             String type = (String) event.get("type");
-
+            System.out.println("Processing event of type: " + type);
             switch (type) {
                 case "RIDER_STATUS":
                     handleRiderStatus(event);
