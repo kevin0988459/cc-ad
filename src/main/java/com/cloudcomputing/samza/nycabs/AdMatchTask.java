@@ -224,7 +224,6 @@ public class AdMatchTask implements StreamTask, InitableTask {
                 userProfile.put("interest", interest);
                 // Update the userInfo KV store
                 userInfo.put(userId, userProfile);
-                System.out.println("Updated interest for userId " + userId + ": " + interest);
             }
         } catch (Exception e) {
             System.err.println("Error processing RIDER_INTEREST event: " + e.getMessage());
@@ -251,7 +250,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
             int age = (Integer) userProfile.getOrDefault("age", 0);
             double userLat = Double.parseDouble(userProfile.getOrDefault("latitude", "0").toString());
             double userLon = Double.parseDouble(userProfile.getOrDefault("longitude", "0").toString());
-
+            System.out.println("Processing Rider Request User profile for userId " + userId + ": " + userProfile);
             // Collect all possible stores matching user's tags
             List<Map<String, Object>> candidateStores = getCandidateStores(userTags);
 
