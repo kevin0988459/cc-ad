@@ -173,7 +173,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
         } catch (NumberFormatException e) {
             System.err.println("UserId is not a valid integer in message: " + message);
         }
-
+        int userId = 0;
         if (incomingStream.equals(AdMatchConfig.EVENT_STREAM.getStream())) {
             // Handle Event messages
             String eventType = (String) message.get("type");
