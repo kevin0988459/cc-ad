@@ -245,12 +245,17 @@ public class AdMatchTask implements StreamTask, InitableTask {
 
             Set<String> userTags = (Set<String>) userProfile.get("tags");
             String userInterest = (String) userProfile.getOrDefault("interest", "");
+            System.out.println("User interest for userId " + userId + ": " + userInterest);
             String device = (String) userProfile.getOrDefault("device", "");
+            System.out.println("User device for userId " + userId + ": " + device);
             int travelCount = (Integer) userProfile.getOrDefault("travel_count", 0);
+            System.out.println("User travel count for userId " + userId + ": " + travelCount);
             int age = (Integer) userProfile.getOrDefault("age", 0);
+            System.out.println("User age for userId " + userId + ": " + age);
             double userLat = Double.parseDouble(userProfile.getOrDefault("latitude", "0").toString());
+            System.out.println("User latitude for userId " + userId + ": " + userLat);
             double userLon = Double.parseDouble(userProfile.getOrDefault("longitude", "0").toString());
-            System.out.println("Processing Rider Request User profile for userId " + userId + ": " + userProfile);
+            System.out.println("User longitude for userId " + userId + ": " + userLon);
             // Collect all possible stores matching user's tags
             List<Map<String, Object>> candidateStores = getCandidateStores(userTags);
 
