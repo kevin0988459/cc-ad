@@ -235,10 +235,9 @@ public class AdMatchTask implements StreamTask, InitableTask {
      * ad-stream.
      */
     private void handleRideRequest(Map<String, Object> event, MessageCollector collector) {
-        System.out.println("Processing Rider Request: " + event);
 
         try {
-            int userId = (Integer) event.get("userId");
+            int userId = (Integer) event.get("clientId");
             System.out.println("Processing Rider Request for userId " + userId);
             // Retrieve user profile
             Map<String, Object> userProfile = userInfo.get(userId);
