@@ -155,7 +155,6 @@ public class AdMatchTask implements StreamTask, InitableTask {
          */
         String incomingStream = envelope.getSystemStreamPartition().getStream();
         Object message = envelope.getMessage();
-        System.out.println("Processing message: " + message + " of type: " + message.getClass().getName());
         if (message instanceof Map) {
             Map<String, Object> event = (Map<String, Object>) message;
             String type = (String) event.get("type");
@@ -213,10 +212,14 @@ public class AdMatchTask implements StreamTask, InitableTask {
      * Handles the RIDER_INTEREST event to update userInfo.
      */
     private void handleRiderInterest(Map<String, Object> event) {
+        int userId = (Integer) event.get("userId");
+        String interest = (String) event.get("interest");
+        int duration = (Integer) event.get("duration");
+        System.out.println("Processing RIDER_INTEREST event for userId: " + userId + " with interest: " + interest);
         try {
-            int userId = (Integer) event.get("userId");
-            String interest = (String) event.get("interest");
-            int duration = (Integer) event.get("duration");
+            // int userId = (Integer) event.get("userId");
+            // String interest = (String) event.get("interest");
+            // int duration = (Integer) event.get("duration");
 
             // Only update interest if duration > 5 minutes
             if (duration > 300000) {
