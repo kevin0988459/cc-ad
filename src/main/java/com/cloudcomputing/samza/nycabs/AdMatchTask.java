@@ -222,9 +222,9 @@ public class AdMatchTask implements StreamTask, InitableTask {
                 Map<String, Object> userProfile = userInfo.get(userId);
                 // Update user interest
                 userProfile.put("interest", interest);
-                System.out.println("Updated interest for userId " + userId + ": " + interest);
                 // Update the userInfo KV store
                 userInfo.put(userId, userProfile);
+                System.out.println("Updated interest for userId " + userId + ": " + interest);
             }
         } catch (Exception e) {
             System.err.println("Error processing RIDER_INTEREST event: " + e.getMessage());
