@@ -146,9 +146,33 @@ public class AdMatchTask implements StreamTask, InitableTask {
         String incomingStream = envelope.getSystemStreamPartition().getStream();
         Map<String, Object> message = (Map<String, Object>) envelope.getMessage();
         System.out.println("Message class type: " + message.getClass().getName());
+
+        if (message == null) {
+            System.err.println("Received null message");
+            return;
+        }
+
         Object userIdObj = message.get("userId");
-        int userId = Integer.parseInt(userIdObj.toString());
-        System.out.println("User ID: " + userId);
+        if (userIdObj == null) {
+            System.err.println("UserId is missing in message: " + message);
+            return;
+        }
+
+        try {
+            int userId = Integer.parseInt(userIdObj.toString());
+            System.out.println("Processing userId: " + userId);
+
+            // Retrieve user information
+            Map<String, Object> user = userInfo.get(userId);
+            if (user == null) {
+                System.err.println("User not found for userId: " + userId);
+                return;
+            }
+
+            // Proceed with further processing using userId and user
+        } catch (NumberFormatException e) {
+            System.err.println("UserId is not a valid integer in message: " + message);
+        }
 
         if (incomingStream.equals(AdMatchConfig.EVENT_STREAM.getStream())) {
             // Handle Event messages
