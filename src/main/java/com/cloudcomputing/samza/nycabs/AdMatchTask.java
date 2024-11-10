@@ -109,7 +109,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
                     Map<String, Object> mapResult = mapper.readValue(rawString, HashMap.class);
                     int userId = (Integer) mapResult.get("userId");
                     // Determine user tags
-                    Set<String> userTags = determineUserTags(
+                    List<String> userTags = determineUserTags(
                             (Integer) mapResult.get("blood_sugar"),
                             (Integer) mapResult.get("mood"),
                             (Integer) mapResult.get("stress"),
@@ -199,7 +199,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
             userProfile.put("active", active);
 
             // Assign tags based on updated profile
-            Set<String> userTags = determineUserTags(bloodSugar, mood, stress, active);
+            List<String> userTags = determineUserTags(bloodSugar, mood, stress, active);
             userProfile.put("tags", userTags);
 
             // Update the userInfo KV store
@@ -250,7 +250,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
             Object tagsObj = userProfile.get("tags");
             System.out.println("tagsObj type: " + tagsObj.getClass().getName());
 
-            Set<String> userTags = (Set<String>) userProfile.get("tags");
+            List<String> userTags = (List<String>) userProfile.get("tags");
             String userInterest = (String) userProfile.get("interest");
             String device = (String) userProfile.get("device");
             int travelCount = (Integer) userProfile.get("travel_count");
@@ -297,7 +297,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
     /**
      * Retrieves candidate stores that match any of the user's tags.
      */
-    private List<Map<String, Object>> getCandidateStores(Set<String> userTags) {
+    private List<Map<String, Object>> getCandidateStores(List<String> userTags) {
         List<Map<String, Object>> candidateStores = new ArrayList<>();
 
         KeyValueIterator<String, Map<String, Object>> iterator = yelpInfo.all();
@@ -360,8 +360,8 @@ public class AdMatchTask implements StreamTask, InitableTask {
     /**
      * Determines user tags based on metrics.
      */
-    private Set<String> determineUserTags(int bloodSugar, int mood, int stress, int active) {
-        Set<String> tags = new HashSet<>();
+    private List<String> determineUserTags(int bloodSugar, int mood, int stress, int active) {
+        List<String> tags = new ArrayList<>();
 
         // lowCalories
         if (bloodSugar > 4 && mood > 6 && active == 3) {
