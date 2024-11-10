@@ -344,7 +344,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
                 adMessage.put("name", bestStore.get("name"));
                 // Send to ad-stream
                 collector.send(new OutgoingMessageEnvelope(AdMatchConfig.AD_STREAM, adMessage));
-                System.out.println("Candidate store: " + candidateStores + "best store: " + bestStore);
+                System.out.println("There is candidate store " + "best store: " + bestStore);
             }
         } catch (Exception e) {
             System.err.println("Error processing RIDE_REQUEST event: " + e.getMessage());
