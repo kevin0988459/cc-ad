@@ -109,10 +109,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
             for (String rawString : userInfoRawString) {
                 try {
                     Map<String, Object> mapResult = mapper.readValue(rawString, HashMap.class);
-                    int userId = (Integer) mapResult.getOrDefault("userId", -1);
-                    if (userId == -1) {
-                        continue;
-                    }
+                    int userId = (Integer) mapResult.get("userId");
                     // Determine user tags
                     Set<String> userTags = determineUserTags(
                             (Integer) mapResult.get("blood_sugar"),
@@ -264,9 +261,12 @@ public class AdMatchTask implements StreamTask, InitableTask {
             // Retrieve user profile
             System.out.println("Handle ride request for user id: " + userId);
             Map<String, Object> userProfile = userInfo.get(userId);
-
+            System.out.println("User id: " + userId + " userProfile: " + userProfile.size());
+            if (userProfile == null) {
+                System.err.println("User profile not found for User ID: " + userId);
+                return;
+            }
             Set<String> userTags = (Set<String>) userProfile.get("tags");
-            System.out.println("User id: " + userId + " userTags: " + userTags);
             String userInterest = (String) userProfile.get("interest");
             String device = (String) userProfile.get("device");
             int travelCount = (Integer) userProfile.get("travel_count");
