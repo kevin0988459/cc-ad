@@ -22,7 +22,12 @@ public class AdMatchTaskApplication implements TaskApplication {
     private static final List<String> KAFKA_CONSUMER_ZK_CONNECT = ImmutableList.of("172.31.88.233:2181");
 
     // Consider modify the bootstrap servers address. This example only cover one address.
-    private static final List<String> KAFKA_PRODUCER_BOOTSTRAP_SERVERS = ImmutableList.of("172.31.88.233:9092");
+    private static final List<String> KAFKA_PRODUCER_BOOTSTRAP_SERVERS = ImmutableList.of(
+            "172.31.86.55:9092",
+            "172.31.95.143:9092",
+            "172.31.88.233:9092"
+    );
+
     private static final Map<String, String> KAFKA_DEFAULT_STREAM_CONFIGS = ImmutableMap.of("replication.factor", "1");
 
     @Override
