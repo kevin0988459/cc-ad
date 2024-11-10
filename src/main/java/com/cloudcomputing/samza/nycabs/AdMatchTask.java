@@ -93,7 +93,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
         //Initialize static data and save them in kv store
         initialize("UserInfoData.json", "NYCstore.json");
 
-        printYelpInfoStores(50);
+        printYelpInfoStores(10);
     }
 
     /**
@@ -275,12 +275,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
 
             // Collect candidate stores using secondary index
             List<Map<String, Object>> candidateStores = getCandidateStores(userTags);
-
-            if (candidateStores.isEmpty()) {
-                System.out.println("Soory there is no candidate");
-                return;
-            }
-
+            System.out.println("User id: " + userId + " candidateStores size: " + candidateStores.size());
             // Calculate match scores for candidate stores
             Map<Map<String, Object>, Double> storeScores = new HashMap<>();
             for (Map<String, Object> store : candidateStores) {
@@ -297,6 +292,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
                     bestStore = entry.getKey();
                 }
             }
+            System.out.println("User id: " + userId + "bestStore" + bestStore + " Max score: " + maxScore);
 
             if (bestStore != null) {
                 // Prepare the advertisement message
@@ -306,7 +302,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
                 adMessage.put("name", bestStore.get("name"));
                 // Send to ad-stream
                 collector.send(new OutgoingMessageEnvelope(AdMatchConfig.AD_STREAM, adMessage));
-                System.out.println("Match to the best store: " + bestStore);
+                System.out.println("User id: " + userId + " Match to the best store: " + bestStore);
             }
         } catch (Exception e) {
             System.err.println("Error processing RIDE_REQUEST event: " + e.getMessage());
@@ -326,7 +322,6 @@ public class AdMatchTask implements StreamTask, InitableTask {
                 Map<String, Object> store = entry.getValue();
                 String storeTag = (String) store.getOrDefault("tag", "others");
                 if (userTags.contains(storeTag)) {
-                    System.out.println("There is candidate store " + store);
                     candidateStores.add(store);
                 }
             }
@@ -374,8 +369,6 @@ public class AdMatchTask implements StreamTask, InitableTask {
         if (distance > distanceThreshold) {
             score *= 0.1;
         }
-        System.out.println("highest Score: " + score);
-
         return score;
     }
 
