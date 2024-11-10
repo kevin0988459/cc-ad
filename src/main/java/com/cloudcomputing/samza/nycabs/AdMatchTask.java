@@ -109,7 +109,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
                     Map<String, Object> mapResult = mapper.readValue(rawString, HashMap.class);
                     int userId = (Integer) mapResult.get("userId");
                     // Determine user tags
-                    List<String> userTags = determineUserTags(
+                    Set<String> userTags = determineUserTags(
                             (Integer) mapResult.get("blood_sugar"),
                             (Integer) mapResult.get("mood"),
                             (Integer) mapResult.get("stress"),
@@ -199,7 +199,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
             userProfile.put("active", active);
 
             // Assign tags based on updated profile
-            List<String> userTags = determineUserTags(bloodSugar, mood, stress, active);
+            Set<String> userTags = determineUserTags(bloodSugar, mood, stress, active);
             userProfile.put("tags", userTags);
 
             // Update the userInfo KV store
@@ -242,11 +242,13 @@ public class AdMatchTask implements StreamTask, InitableTask {
             System.out.println("Handle ride request for user id: " + userId);
             Map<String, Object> userProfile = userInfo.get(userId);
             System.out.println("User id: " + userId + " userProfile: " + userProfile);
+
             if (userProfile == null) {
                 System.out.println("User profile not found for User ID: " + userId);
                 return;
             }
-            List<String> userTags = (List<String>) userProfile.get("tags");
+
+            Set<String> userTags = (Set<String>) userProfile.get("tags");
             String userInterest = (String) userProfile.get("interest");
             String device = (String) userProfile.get("device");
             int travelCount = (Integer) userProfile.get("travel_count");
@@ -254,6 +256,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
             double userLat = Double.parseDouble(event.get("latitude").toString());
             double userLon = Double.parseDouble(event.get("longitude").toString());
 
+            // Collect candidate stores using secondary index
             List<Map<String, Object>> candidateStores = getCandidateStores(userTags);
             System.out.println("User id: " + userId + " candidateStores size: " + candidateStores.size());
             // Calculate match scores for candidate stores
@@ -292,7 +295,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
     /**
      * Retrieves candidate stores that match any of the user's tags.
      */
-    private List<Map<String, Object>> getCandidateStores(List<String> userTags) {
+    private List<Map<String, Object>> getCandidateStores(Set<String> userTags) {
         List<Map<String, Object>> candidateStores = new ArrayList<>();
 
         KeyValueIterator<String, Map<String, Object>> iterator = yelpInfo.all();
@@ -300,13 +303,9 @@ public class AdMatchTask implements StreamTask, InitableTask {
             while (iterator.hasNext()) {
                 Entry<String, Map<String, Object>> entry = iterator.next();
                 Map<String, Object> store = entry.getValue();
-                List<String> storeTags = (List<String>) store.getOrDefault("tags", new ArrayList<>());
-                boolean hasMatch = false;
-                for (String tag : userTags) {
-                    if (storeTags.contains(tag)) {
-                        hasMatch = true;
-                        break;
-                    }
+                String storeTag = (String) store.getOrDefault("tag", "others");
+                if (userTags.contains(storeTag)) {
+                    candidateStores.add(store);
                 }
             }
         } finally {
@@ -359,25 +358,35 @@ public class AdMatchTask implements StreamTask, InitableTask {
     /**
      * Determines user tags based on metrics.
      */
-    private List<String> determineUserTags(int bloodSugar, int mood, int stress, int active) {
-        List<String> tags = new ArrayList<>();
+    private Set<String> determineUserTags(int bloodSugar, int mood, int stress, int active) {
+        Set<String> tags = new HashSet<>();
 
-        // Tagging logic...
+        // lowCalories
         if (bloodSugar > 4 && mood > 6 && active == 3) {
             tags.add("lowCalories");
         }
+
+        // energyProviders
         if (bloodSugar < 2 || mood < 4) {
             tags.add("energyProviders");
         }
+
+        // willingTour
         if (active == 3) {
             tags.add("willingTour");
         }
+
+        // stressRelease
         if (stress > 5 || active == 1 || mood < 4) {
             tags.add("stressRelease");
         }
+
+        // happyChoice
         if (mood > 6) {
             tags.add("happyChoice");
         }
+
+        // others
         if (tags.isEmpty()) {
             tags.add("others");
         }
