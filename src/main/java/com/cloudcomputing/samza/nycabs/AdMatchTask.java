@@ -35,8 +35,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
 
     private KeyValueStore<String, Map<String, Object>> yelpInfo;
 
-    // In-Memory Secondary Index: Tag -> List of Store IDs
-    private Map<String, List<String>> tagToStoreIds;
+    private KeyValueStore<String, List<String>> tagToStoreIds;
 
     private Set<String> lowCalories;
 
@@ -90,6 +89,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
 
         userInfo = (KeyValueStore<Integer, Map<String, Object>>) context.getTaskContext().getStore("user-info");
         yelpInfo = (KeyValueStore<String, Map<String, Object>>) context.getTaskContext().getStore("yelp-info");
+        tagToStoreIds = (KeyValueStore<String, List<String>>) context.getTaskContext().getStore("tag-to-store-ids");
 
         //Initialize store tags set
         initSets();
@@ -105,7 +105,6 @@ public class AdMatchTask implements StreamTask, InitableTask {
      * Builds the in-memory secondary index for tag to store IDs.
      */
     private void buildSecondaryIndex() {
-        tagToStoreIds = new HashMap<>();
         KeyValueIterator<String, Map<String, Object>> iterator = null;
         try {
             iterator = yelpInfo.all();
@@ -114,19 +113,22 @@ public class AdMatchTask implements StreamTask, InitableTask {
                 Map<String, Object> store = entry.getValue();
                 String storeId = entry.getKey();
                 String tag = (String) store.getOrDefault("tag", "others");
-                tagToStoreIds.computeIfAbsent(tag, k -> new ArrayList<>()).add(storeId);
+
+                // Retrieve existing list or create a new one
+                List<String> storeList = tagToStoreIds.get(tag);
+                if (storeList == null) {
+                    storeList = new ArrayList<>();
+                    tagToStoreIds.put(tag, storeList);
+                }
+                storeList.add(storeId);
             }
-            System.out.println("Secondary index built successfully with " + tagToStoreIds.size() + " tags.");
         } catch (Exception e) {
-            System.err.println("Error building secondary index: " + e.getMessage());
-            e.printStackTrace();
         } finally {
             if (iterator != null) {
                 try {
                     iterator.close();
                 } catch (Exception e) {
-                    System.err.println("Failed to close KeyValueIterator: " + e.getMessage());
-                    e.printStackTrace();
+                    System.out.println("Failed to close KeyValueIterator: " + e.getMessage());
                 }
             }
         }
@@ -177,8 +179,15 @@ public class AdMatchTask implements StreamTask, InitableTask {
                     mapResult.put("tag", tag);
                     yelpInfo.put(storeId, mapResult);
 
-                    // Update secondary index
-                    tagToStoreIds.computeIfAbsent(tag, k -> new ArrayList<>()).add(storeId);
+                    // Update secondary index store
+                    List<String> storeList = tagToStoreIds.get(tag);
+                    if (storeList == null) {
+                        storeList = new ArrayList<>();
+                    } else {
+                        storeList = new ArrayList<>(storeList); // Ensure mutability
+                    }
+                    storeList.add(storeId);
+                    tagToStoreIds.put(tag, storeList);
                 } catch (Exception e) {
                     System.out.println("Error parsing store info:");
                 }
@@ -342,11 +351,13 @@ public class AdMatchTask implements StreamTask, InitableTask {
         List<Map<String, Object>> candidateStores = new ArrayList<>();
 
         for (String tag : userTags) {
-            List<String> storeIds = tagToStoreIds.getOrDefault(tag, Collections.emptyList());
-            for (String storeId : storeIds) {
-                Map<String, Object> store = yelpInfo.get(storeId);
-                if (store != null) {
-                    candidateStores.add(store);
+            List<String> storeIds = tagToStoreIds.get(tag);
+            if (storeIds != null) {
+                for (String storeId : storeIds) {
+                    Map<String, Object> store = yelpInfo.get(storeId);
+                    if (store != null) {
+                        candidateStores.add(store);
+                    }
                 }
             }
         }
