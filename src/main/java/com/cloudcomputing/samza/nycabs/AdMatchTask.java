@@ -92,8 +92,6 @@ public class AdMatchTask implements StreamTask, InitableTask {
 
         //Initialize static data and save them in kv store
         initialize("UserInfoData.json", "NYCstore.json");
-
-        printYelpInfoStores(10);
     }
 
     /**
@@ -110,6 +108,14 @@ public class AdMatchTask implements StreamTask, InitableTask {
                 try {
                     Map<String, Object> mapResult = mapper.readValue(rawString, HashMap.class);
                     int userId = (Integer) mapResult.get("userId");
+                    // Determine user tags
+                    List<String> userTags = determineUserTags(
+                            (Integer) mapResult.get("blood_sugar"),
+                            (Integer) mapResult.get("mood"),
+                            (Integer) mapResult.get("stress"),
+                            (Integer) mapResult.get("active")
+                    );
+                    mapResult.put("tags", userTags);
                     userInfo.put(userId, mapResult);
                 } catch (Exception e) {
                     System.out.println("Error parsing user info:");
@@ -137,24 +143,6 @@ public class AdMatchTask implements StreamTask, InitableTask {
             }
         } catch (Exception e) {
             System.out.println("Error during initialization:");
-        }
-    }
-
-    public void printYelpInfoStores(int limit) {
-        KeyValueIterator<String, Map<String, Object>> iterator = yelpInfo.all();
-        int count = 0; // Initialize a counter
-        try {
-            while (iterator.hasNext() && count < limit) {
-                Entry<String, Map<String, Object>> entry = iterator.next();
-                System.out.println("Store ID: " + entry.getKey() + ", Store Details: " + entry.getValue());
-                count++; // Increment the counter
-            }
-        } catch (Exception e) {
-            System.err.println("Error printing yelpInfo stores: " + e.getMessage());
-        } finally {
-            if (iterator != null) {
-                iterator.close();
-            }
         }
     }
 
@@ -211,7 +199,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
             userProfile.put("active", active);
 
             // Assign tags based on updated profile
-            Set<String> userTags = determineUserTags(bloodSugar, mood, stress, active);
+            List<String> userTags = determineUserTags(bloodSugar, mood, stress, active);
             userProfile.put("tags", userTags);
 
             // Update the userInfo KV store
@@ -258,7 +246,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
                 System.out.println("User profile not found for User ID: " + userId);
                 return;
             }
-            Set<String> userTags = (Set<String>) userProfile.get("tags");
+            List<String> userTags = (List<String>) userProfile.get("tags");
             String userInterest = (String) userProfile.get("interest");
             String device = (String) userProfile.get("device");
             int travelCount = (Integer) userProfile.get("travel_count");
@@ -266,7 +254,6 @@ public class AdMatchTask implements StreamTask, InitableTask {
             double userLat = Double.parseDouble(event.get("latitude").toString());
             double userLon = Double.parseDouble(event.get("longitude").toString());
 
-            // Collect candidate stores using secondary index
             List<Map<String, Object>> candidateStores = getCandidateStores(userTags);
             System.out.println("User id: " + userId + " candidateStores size: " + candidateStores.size());
             // Calculate match scores for candidate stores
@@ -305,7 +292,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
     /**
      * Retrieves candidate stores that match any of the user's tags.
      */
-    private List<Map<String, Object>> getCandidateStores(Set<String> userTags) {
+    private List<Map<String, Object>> getCandidateStores(List<String> userTags) {
         List<Map<String, Object>> candidateStores = new ArrayList<>();
 
         KeyValueIterator<String, Map<String, Object>> iterator = yelpInfo.all();
@@ -313,9 +300,13 @@ public class AdMatchTask implements StreamTask, InitableTask {
             while (iterator.hasNext()) {
                 Entry<String, Map<String, Object>> entry = iterator.next();
                 Map<String, Object> store = entry.getValue();
-                String storeTag = (String) store.getOrDefault("tag", "others");
-                if (userTags.contains(storeTag)) {
-                    candidateStores.add(store);
+                List<String> storeTags = (List<String>) store.getOrDefault("tags", new ArrayList<>());
+                boolean hasMatch = false;
+                for (String tag : userTags) {
+                    if (storeTags.contains(tag)) {
+                        hasMatch = true;
+                        break;
+                    }
                 }
             }
         } finally {
@@ -368,35 +359,25 @@ public class AdMatchTask implements StreamTask, InitableTask {
     /**
      * Determines user tags based on metrics.
      */
-    private Set<String> determineUserTags(int bloodSugar, int mood, int stress, int active) {
-        Set<String> tags = new HashSet<>();
+    private List<String> determineUserTags(int bloodSugar, int mood, int stress, int active) {
+        List<String> tags = new ArrayList<>();
 
-        // lowCalories
+        // Tagging logic...
         if (bloodSugar > 4 && mood > 6 && active == 3) {
             tags.add("lowCalories");
         }
-
-        // energyProviders
         if (bloodSugar < 2 || mood < 4) {
             tags.add("energyProviders");
         }
-
-        // willingTour
         if (active == 3) {
             tags.add("willingTour");
         }
-
-        // stressRelease
         if (stress > 5 || active == 1 || mood < 4) {
             tags.add("stressRelease");
         }
-
-        // happyChoice
         if (mood > 6) {
             tags.add("happyChoice");
         }
-
-        // others
         if (tags.isEmpty()) {
             tags.add("others");
         }
