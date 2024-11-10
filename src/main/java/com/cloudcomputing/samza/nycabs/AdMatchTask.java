@@ -2,6 +2,7 @@ package com.cloudcomputing.samza.nycabs;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -20,8 +21,6 @@ import org.apache.samza.task.StreamTask;
 import org.apache.samza.task.TaskCoordinator;
 import org.codehaus.jackson.map.ObjectMapper;
 
-import com.google.common.io.Resources;
-
 /**
  * Consumes the stream of events. Outputs a stream which handles static file and
  * one stream and gives a stream of advertisement matches.
@@ -36,6 +35,9 @@ public class AdMatchTask implements StreamTask, InitableTask {
 
     private KeyValueStore<String, Map<String, Object>> yelpInfo;
 
+    // In-Memory Secondary Index: Tag -> List of Store IDs
+    private Map<String, List<String>> tagToStoreIds;
+
     private Set<String> lowCalories;
 
     private Set<String> energyProviders;
@@ -45,6 +47,9 @@ public class AdMatchTask implements StreamTask, InitableTask {
     private Set<String> stressRelease;
 
     private Set<String> happyChoice;
+
+    // Reusable ObjectMapper instance
+    private static final ObjectMapper mapper = new ObjectMapper();
 
     private void initSets() {
         lowCalories = new HashSet<>(Arrays.asList("seafood", "vegetarian", "vegan", "sushi"));
@@ -89,8 +94,42 @@ public class AdMatchTask implements StreamTask, InitableTask {
         //Initialize store tags set
         initSets();
 
+        // Initialize secondary index
+        buildSecondaryIndex();
+
         //Initialize static data and save them in kv store
         initialize("UserInfoData.json", "NYCstore.json");
+    }
+
+    /**
+     * Builds the in-memory secondary index for tag to store IDs.
+     */
+    private void buildSecondaryIndex() {
+        tagToStoreIds = new HashMap<>();
+        KeyValueIterator<String, Map<String, Object>> iterator = null;
+        try {
+            iterator = yelpInfo.all();
+            while (iterator.hasNext()) {
+                Entry<String, Map<String, Object>> entry = iterator.next();
+                Map<String, Object> store = entry.getValue();
+                String storeId = entry.getKey();
+                String tag = (String) store.getOrDefault("tag", "others");
+                tagToStoreIds.computeIfAbsent(tag, k -> new ArrayList<>()).add(storeId);
+            }
+            System.out.println("Secondary index built successfully with " + tagToStoreIds.size() + " tags.");
+        } catch (Exception e) {
+            System.err.println("Error building secondary index: " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            if (iterator != null) {
+                try {
+                    iterator.close();
+                } catch (Exception e) {
+                    System.err.println("Failed to close KeyValueIterator: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
     /**
@@ -100,47 +139,52 @@ public class AdMatchTask implements StreamTask, InitableTask {
      * This is just an example, feel free to change them.
      */
     public void initialize(String userInfoFile, String businessFile) {
-        List<String> userInfoRawString = AdMatchConfig.readFile(userInfoFile);
-        System.out.println("Reading user info file from " + Resources.getResource(userInfoFile).toString());
-        System.out.println("UserInfo raw string size: " + userInfoRawString.size());
-        for (String rawString : userInfoRawString) {
-            Map<String, Object> mapResult;
-            ObjectMapper mapper = new ObjectMapper();
-            try {
-                mapResult = mapper.readValue(rawString, HashMap.class);
-                int userId = (Integer) mapResult.get("userId");
-                // determine the user tag
-                Set<String> userTags = determineUserTags(
-                        (Integer) mapResult.getOrDefault("blood_sugar", 0),
-                        (Integer) mapResult.getOrDefault("mood", 0),
-                        (Integer) mapResult.getOrDefault("stress", 0),
-                        (Integer) mapResult.getOrDefault("active", 0)
-                );
-                mapResult.put("tags", userTags);
-                userInfo.put(userId, mapResult);
-            } catch (Exception e) {
-                System.out.println("Failed at parse user info :" + rawString);
+        try {
+            List<String> userInfoRawString = AdMatchConfig.readFile(userInfoFile);
+
+            for (String rawString : userInfoRawString) {
+                try {
+                    Map<String, Object> mapResult = mapper.readValue(rawString, HashMap.class);
+                    int userId = (Integer) mapResult.getOrDefault("userId", -1);
+                    if (userId == -1) {
+                        continue;
+                    }
+                    // Determine user tags
+                    Set<String> userTags = determineUserTags(
+                            (Integer) mapResult.getOrDefault("blood_sugar", 0),
+                            (Integer) mapResult.getOrDefault("mood", 0),
+                            (Integer) mapResult.getOrDefault("stress", 0),
+                            (Integer) mapResult.getOrDefault("active", 0)
+                    );
+                    mapResult.put("tags", userTags);
+                    userInfo.put(userId, mapResult);
+                } catch (Exception e) {
+                    System.out.println("Error parsing user info:");
+                }
             }
-        }
 
-        List<String> businessRawString = AdMatchConfig.readFile(businessFile);
+            List<String> businessRawString = AdMatchConfig.readFile(businessFile);
 
-        System.out.println("Reading store info file from " + Resources.getResource(businessFile).toString());
-        System.out.println("Store raw string size: " + businessRawString.size());
+            for (String rawString : businessRawString) {
+                try {
+                    Map<String, Object> mapResult = mapper.readValue(rawString, HashMap.class);
+                    String storeId = (String) mapResult.getOrDefault("storeId", "unknown");
+                    if ("unknown".equals(storeId)) {
+                        continue;
+                    }
+                    String cate = (String) mapResult.getOrDefault("categories", "others");
+                    String tag = getTag(cate);
+                    mapResult.put("tag", tag);
+                    yelpInfo.put(storeId, mapResult);
 
-        for (String rawString : businessRawString) {
-            Map<String, Object> mapResult;
-            ObjectMapper mapper = new ObjectMapper();
-            try {
-                mapResult = mapper.readValue(rawString, HashMap.class);
-                String storeId = (String) mapResult.get("storeId");
-                String cate = (String) mapResult.get("categories");
-                String tag = getTag(cate);
-                mapResult.put("tag", tag);
-                yelpInfo.put(storeId, mapResult);
-            } catch (Exception e) {
-                System.out.println("Failed at parse store info :" + rawString);
+                    // Update secondary index
+                    tagToStoreIds.computeIfAbsent(tag, k -> new ArrayList<>()).add(storeId);
+                } catch (Exception e) {
+                    System.out.println("Error parsing store info:");
+                }
             }
+        } catch (Exception e) {
+            System.out.println("Error during initialization:");
         }
     }
 
@@ -234,25 +278,31 @@ public class AdMatchTask implements StreamTask, InitableTask {
      * ad-stream.
      */
     private void handleRideRequest(Map<String, Object> event, MessageCollector collector) {
-
         try {
-            int userId = (Integer) event.get("clientId");
+            int userId = (Integer) event.getOrDefault("clientId", -1);
+            if (userId == -1) {
+                return;
+            }
+
             // Retrieve user profile
             Map<String, Object> userProfile = userInfo.get(userId);
-            Set<String> userTags = (Set<String>) userProfile.get("tags");
+            if (userProfile == null) {
+                return;
+            }
+
+            Set<String> userTags = (Set<String>) userProfile.getOrDefault("tags", Collections.emptySet());
             String userInterest = (String) userProfile.getOrDefault("interest", "");
             String device = (String) userProfile.getOrDefault("device", "");
             int travelCount = (Integer) userProfile.getOrDefault("travel_count", 0);
             int age = (Integer) userProfile.getOrDefault("age", 0);
-            double userLat = (Double) event.get("latitude");
-            double userLon = (Double) event.get("longitude");
-            // Collect all possible stores matching user's tags
-            List<Map<String, Object>> candidateStores = getCandidateStores(userTags);
+            double userLat = Double.parseDouble(event.getOrDefault("latitude", "0").toString());
+            double userLon = Double.parseDouble(event.getOrDefault("longitude", "0").toString());
 
+            // Collect candidate stores using secondary index
+            List<Map<String, Object>> candidateStores = getCandidateStores(userTags);
             if (candidateStores.isEmpty()) {
                 return;
             }
-            System.out.println("Candidate stores for userId " + userId + ": " + candidateStores);
 
             // Calculate match scores for candidate stores
             Map<Map<String, Object>, Double> storeScores = new HashMap<>();
@@ -271,7 +321,6 @@ public class AdMatchTask implements StreamTask, InitableTask {
                 }
             }
 
-            System.out.println("###### MATCH ######" + userId + ": " + bestStore);
             if (bestStore != null) {
                 // Prepare the advertisement message
                 Map<String, Object> adMessage = new HashMap<>();
@@ -281,7 +330,6 @@ public class AdMatchTask implements StreamTask, InitableTask {
                 // Send to ad-stream
                 collector.send(new OutgoingMessageEnvelope(AdMatchConfig.AD_STREAM, adMessage));
             }
-
         } catch (Exception e) {
             System.err.println("Error processing RIDE_REQUEST event: " + e.getMessage());
         }
@@ -293,20 +341,14 @@ public class AdMatchTask implements StreamTask, InitableTask {
     private List<Map<String, Object>> getCandidateStores(Set<String> userTags) {
         List<Map<String, Object>> candidateStores = new ArrayList<>();
 
-        KeyValueIterator<String, Map<String, Object>> iterator = yelpInfo.all();
-        try {
-            while (iterator.hasNext()) {
-                Entry<String, Map<String, Object>> entry = iterator.next();
-                Map<String, Object> store = entry.getValue();
-                String storeTag = (String) store.get("tag");
-
-                // Check if store tag matches any of user's tags
-                if (userTags.contains(storeTag)) {
+        for (String tag : userTags) {
+            List<String> storeIds = tagToStoreIds.getOrDefault(tag, Collections.emptyList());
+            for (String storeId : storeIds) {
+                Map<String, Object> store = yelpInfo.get(storeId);
+                if (store != null) {
                     candidateStores.add(store);
                 }
             }
-        } finally {
-            iterator.close(); // Ensure the iterator is closed to free resources
         }
 
         return candidateStores;
@@ -341,7 +383,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
         double storeLon = Double.parseDouble(store.getOrDefault("longitude", "0").toString());
         double distance = calculateDistance(userLat, userLon, storeLat, storeLon, "M");
 
-        boolean isYoungOrFrequentTraveler = (age == 20) || (travelCount > 50);
+        boolean isYoungOrFrequentTraveler = (age < 25) || (travelCount > 50); // Modified condition
         double distanceThreshold = isYoungOrFrequentTraveler ? 10.0 : 5.0;
 
         if (distance > distanceThreshold) {
