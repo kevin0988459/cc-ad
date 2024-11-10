@@ -247,6 +247,8 @@ public class AdMatchTask implements StreamTask, InitableTask {
                 System.out.println("User profile not found for User ID: " + userId);
                 return;
             }
+            Object tagsObj = userProfile.get("tags");
+            System.out.println("tagsObj type: " + tagsObj.getClass().getName());
 
             Set<String> userTags = (Set<String>) userProfile.get("tags");
             String userInterest = (String) userProfile.get("interest");
