@@ -2,7 +2,6 @@ package com.cloudcomputing.samza.nycabs;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -34,8 +33,6 @@ public class AdMatchTask implements StreamTask, InitableTask {
     private KeyValueStore<Integer, Map<String, Object>> userInfo;
 
     private KeyValueStore<String, Map<String, Object>> yelpInfo;
-
-    private KeyValueStore<String, List<String>> tagToStoreIds;
 
     private Set<String> lowCalories;
 
@@ -89,49 +86,12 @@ public class AdMatchTask implements StreamTask, InitableTask {
 
         userInfo = (KeyValueStore<Integer, Map<String, Object>>) context.getTaskContext().getStore("user-info");
         yelpInfo = (KeyValueStore<String, Map<String, Object>>) context.getTaskContext().getStore("yelp-info");
-        tagToStoreIds = (KeyValueStore<String, List<String>>) context.getTaskContext().getStore("tag-to-store-ids");
 
         //Initialize store tags set
         initSets();
 
-        // Initialize secondary index
-        buildSecondaryIndex();
-
         //Initialize static data and save them in kv store
         initialize("UserInfoData.json", "NYCstore.json");
-    }
-
-    /**
-     * Builds the in-memory secondary index for tag to store IDs.
-     */
-    private void buildSecondaryIndex() {
-        KeyValueIterator<String, Map<String, Object>> iterator = null;
-        try {
-            iterator = yelpInfo.all();
-            while (iterator.hasNext()) {
-                Entry<String, Map<String, Object>> entry = iterator.next();
-                Map<String, Object> store = entry.getValue();
-                String storeId = entry.getKey();
-                String tag = (String) store.getOrDefault("tag", "others");
-
-                // Retrieve existing list or create a new one
-                List<String> storeList = tagToStoreIds.get(tag);
-                if (storeList == null) {
-                    storeList = new ArrayList<>();
-                    tagToStoreIds.put(tag, storeList);
-                }
-                storeList.add(storeId);
-            }
-        } catch (Exception e) {
-        } finally {
-            if (iterator != null) {
-                try {
-                    iterator.close();
-                } catch (Exception e) {
-                    System.out.println("Failed to close KeyValueIterator: " + e.getMessage());
-                }
-            }
-        }
     }
 
     /**
@@ -179,15 +139,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
                     mapResult.put("tag", tag);
                     yelpInfo.put(storeId, mapResult);
 
-                    // Update secondary index store
-                    List<String> storeList = tagToStoreIds.get(tag);
-                    if (storeList == null) {
-                        storeList = new ArrayList<>();
-                    } else {
-                        storeList = new ArrayList<>(storeList); // Ensure mutability
-                    }
-                    storeList.add(storeId);
-                    tagToStoreIds.put(tag, storeList);
+                    // Removed: Updating tagToStoreIds
                 } catch (Exception e) {
                     System.out.println("Error parsing store info:");
                 }
@@ -288,24 +240,17 @@ public class AdMatchTask implements StreamTask, InitableTask {
      */
     private void handleRideRequest(Map<String, Object> event, MessageCollector collector) {
         try {
-            int userId = (Integer) event.getOrDefault("clientId", -1);
-            if (userId == -1) {
-                return;
-            }
-
+            int userId = (Integer) event.get("clientId");
             // Retrieve user profile
             Map<String, Object> userProfile = userInfo.get(userId);
-            if (userProfile == null) {
-                return;
-            }
 
-            Set<String> userTags = (Set<String>) userProfile.getOrDefault("tags", Collections.emptySet());
-            String userInterest = (String) userProfile.getOrDefault("interest", "");
-            String device = (String) userProfile.getOrDefault("device", "");
-            int travelCount = (Integer) userProfile.getOrDefault("travel_count", 0);
-            int age = (Integer) userProfile.getOrDefault("age", 0);
-            double userLat = Double.parseDouble(event.getOrDefault("latitude", "0").toString());
-            double userLon = Double.parseDouble(event.getOrDefault("longitude", "0").toString());
+            Set<String> userTags = (Set<String>) userProfile.get("tags");
+            String userInterest = (String) userProfile.get("interest");
+            String device = (String) userProfile.get("device");
+            int travelCount = (Integer) userProfile.get("travel_count");
+            int age = (Integer) userProfile.get("age");
+            double userLat = Double.parseDouble(event.get("latitude").toString());
+            double userLon = Double.parseDouble(event.get("longitude").toString());
 
             // Collect candidate stores using secondary index
             List<Map<String, Object>> candidateStores = getCandidateStores(userTags);
@@ -356,16 +301,20 @@ public class AdMatchTask implements StreamTask, InitableTask {
      */
     private List<Map<String, Object>> getCandidateStores(Set<String> userTags) {
         List<Map<String, Object>> candidateStores = new ArrayList<>();
-
-        for (String tag : userTags) {
-            List<String> storeIds = tagToStoreIds.get(tag);
-            if (storeIds != null) {
-                for (String storeId : storeIds) {
-                    Map<String, Object> store = yelpInfo.get(storeId);
-                    if (store != null) {
-                        candidateStores.add(store);
-                    }
+        
+        KeyValueIterator<String, Map<String, Object>> iterator = yelpInfo.all();
+        try {
+            while (iterator.hasNext()) {
+                Entry<String, Map<String, Object>> entry = iterator.next();
+                Map<String, Object> store = entry.getValue();
+                String storeTag = (String) store.getOrDefault("tag", "others");
+                if (userTags.contains(storeTag)) {
+                    candidateStores.add(store);
                 }
+            }
+        } finally {
+            if (iterator != null) {
+                iterator.close();
             }
         }
 
