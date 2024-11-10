@@ -239,7 +239,6 @@ public class AdMatchTask implements StreamTask, InitableTask {
             int userId = (Integer) event.get("clientId");
             // Retrieve user profile
             Map<String, Object> userProfile = userInfo.get(userId);
-            @SuppressWarnings("unchecked")
             Set<String> userTags = (Set<String>) userProfile.get("tags");
             String userInterest = (String) userProfile.getOrDefault("interest", "");
             String device = (String) userProfile.getOrDefault("device", "");
@@ -253,6 +252,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
             if (candidateStores.isEmpty()) {
                 return;
             }
+            System.out.println("Candidate stores for userId " + userId + ": " + candidateStores);
 
             // Calculate match scores for candidate stores
             Map<Map<String, Object>, Double> storeScores = new HashMap<>();
@@ -270,6 +270,8 @@ public class AdMatchTask implements StreamTask, InitableTask {
                     bestStore = entry.getKey();
                 }
             }
+
+            System.out.println("###### MATCH ######" + userId + ": " + bestStore);
             if (bestStore != null) {
                 // Prepare the advertisement message
                 Map<String, Object> adMessage = new HashMap<>();
