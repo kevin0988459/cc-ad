@@ -92,6 +92,8 @@ public class AdMatchTask implements StreamTask, InitableTask {
 
         //Initialize static data and save them in kv store
         initialize("UserInfoData.json", "NYCstore.json");
+
+        printYelpInfoStores(50);
     }
 
     /**
@@ -146,6 +148,24 @@ public class AdMatchTask implements StreamTask, InitableTask {
             }
         } catch (Exception e) {
             System.out.println("Error during initialization:");
+        }
+    }
+
+    public void printYelpInfoStores(int limit) {
+        KeyValueIterator<String, Map<String, Object>> iterator = yelpInfo.all();
+        int count = 0; // Initialize a counter
+        try {
+            while (iterator.hasNext() && count < limit) {
+                Entry<String, Map<String, Object>> entry = iterator.next();
+                System.out.println("Store ID: " + entry.getKey() + ", Store Details: " + entry.getValue());
+                count++; // Increment the counter
+            }
+        } catch (Exception e) {
+            System.err.println("Error printing yelpInfo stores: " + e.getMessage());
+        } finally {
+            if (iterator != null) {
+                iterator.close();
+            }
         }
     }
 
@@ -242,6 +262,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
         try {
             int userId = (Integer) event.get("clientId");
             // Retrieve user profile
+            System.out.println("Handle ride request for user id: " + userId);
             Map<String, Object> userProfile = userInfo.get(userId);
 
             Set<String> userTags = (Set<String>) userProfile.get("tags");
@@ -276,10 +297,6 @@ public class AdMatchTask implements StreamTask, InitableTask {
                     bestStore = entry.getKey();
                 }
             }
-            if (bestStore == null) {
-                System.out.println("No best store found");
-                return;
-            }
 
             if (bestStore != null) {
                 // Prepare the advertisement message
@@ -289,7 +306,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
                 adMessage.put("name", bestStore.get("name"));
                 // Send to ad-stream
                 collector.send(new OutgoingMessageEnvelope(AdMatchConfig.AD_STREAM, adMessage));
-                System.out.println("There is candidate store " + "best store: " + bestStore);
+                System.out.println("Match to the best store: " + bestStore);
             }
         } catch (Exception e) {
             System.err.println("Error processing RIDE_REQUEST event: " + e.getMessage());
@@ -301,7 +318,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
      */
     private List<Map<String, Object>> getCandidateStores(Set<String> userTags) {
         List<Map<String, Object>> candidateStores = new ArrayList<>();
-        
+
         KeyValueIterator<String, Map<String, Object>> iterator = yelpInfo.all();
         try {
             while (iterator.hasNext()) {
@@ -309,6 +326,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
                 Map<String, Object> store = entry.getValue();
                 String storeTag = (String) store.getOrDefault("tag", "others");
                 if (userTags.contains(storeTag)) {
+                    System.out.println("There is candidate store " + store);
                     candidateStores.add(store);
                 }
             }
@@ -356,6 +374,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
         if (distance > distanceThreshold) {
             score *= 0.1;
         }
+        System.out.println("highest Score: " + score);
 
         return score;
     }
