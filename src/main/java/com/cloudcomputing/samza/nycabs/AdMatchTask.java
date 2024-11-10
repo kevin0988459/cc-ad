@@ -309,7 +309,9 @@ public class AdMatchTask implements StreamTask, InitableTask {
 
             // Collect candidate stores using secondary index
             List<Map<String, Object>> candidateStores = getCandidateStores(userTags);
+
             if (candidateStores.isEmpty()) {
+                System.out.println("Soory there is no candidate");
                 return;
             }
 
@@ -329,6 +331,10 @@ public class AdMatchTask implements StreamTask, InitableTask {
                     bestStore = entry.getKey();
                 }
             }
+            if (bestStore == null) {
+                System.out.println("No best store found");
+                return;
+            }
 
             if (bestStore != null) {
                 // Prepare the advertisement message
@@ -338,6 +344,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
                 adMessage.put("name", bestStore.get("name"));
                 // Send to ad-stream
                 collector.send(new OutgoingMessageEnvelope(AdMatchConfig.AD_STREAM, adMessage));
+                System.out.println("Candidate store: " + candidateStores + "best store: " + bestStore);
             }
         } catch (Exception e) {
             System.err.println("Error processing RIDE_REQUEST event: " + e.getMessage());

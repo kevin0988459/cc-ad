@@ -43,6 +43,7 @@ public class AdMatchTaskApplication implements TaskApplication {
         KafkaOutputDescriptor<Map<String, Object>> outputDescriptor
                 = kafkaSystemDescriptor.getOutputDescriptor("ad-stream", new JsonSerde<>());
 
+        taskApplicationDescriptor.withDefaultSystem(kafkaSystemDescriptor);
         taskApplicationDescriptor.withInputStream(inputDescriptor);
         taskApplicationDescriptor.withOutputStream(outputDescriptor);
         taskApplicationDescriptor.withTaskFactory((StreamTaskFactory) () -> new AdMatchTask());
