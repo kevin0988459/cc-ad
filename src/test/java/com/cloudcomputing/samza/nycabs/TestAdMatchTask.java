@@ -1,7 +1,10 @@
 package com.cloudcomputing.samza.nycabs;
 
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.ListIterator;
+import java.util.Map;
 
-import com.cloudcomputing.samza.nycabs.application.AdMatchTaskApplication;
 import org.apache.samza.serializers.NoOpSerde;
 import org.apache.samza.test.framework.TestRunner;
 import org.apache.samza.test.framework.system.descriptors.InMemoryInputDescriptor;
@@ -10,12 +13,10 @@ import org.apache.samza.test.framework.system.descriptors.InMemorySystemDescript
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.time.Duration;
-import java.util.HashMap;
-import java.util.ListIterator;
-import java.util.Map;
+import com.cloudcomputing.samza.nycabs.application.AdMatchTaskApplication;
 
 public class TestAdMatchTask {
+
     @Test
     public void testAdMatchTask() throws Exception {
         Map<String, String> confMap = new HashMap<>();
@@ -25,6 +26,9 @@ public class TestAdMatchTask {
         confMap.put("stores.yelp-info.factory", "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
         confMap.put("stores.yelp-info.key.serde", "string");
         confMap.put("stores.yelp-info.msg.serde", "json");
+        confMap.put("stores.tag-to-store-ids.factory", "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
+        confMap.put("stores.tag-to-store-ids.key.serde", "string");
+        confMap.put("stores.tag-to-store-ids.msg.serde", "json");
         confMap.put("serializers.registry.json.class", "org.apache.samza.serializers.JsonSerdeFactory");
         confMap.put("serializers.registry.string.class", "org.apache.samza.serializers.StringSerdeFactory");
         confMap.put("serializers.registry.integer.class", "org.apache.samza.serializers.IntegerSerdeFactory");
