@@ -115,10 +115,10 @@ public class AdMatchTask implements StreamTask, InitableTask {
                     }
                     // Determine user tags
                     Set<String> userTags = determineUserTags(
-                            (Integer) mapResult.getOrDefault("blood_sugar", 0),
-                            (Integer) mapResult.getOrDefault("mood", 0),
-                            (Integer) mapResult.getOrDefault("stress", 0),
-                            (Integer) mapResult.getOrDefault("active", 0)
+                            (Integer) mapResult.get("blood_sugar"),
+                            (Integer) mapResult.get("mood"),
+                            (Integer) mapResult.get("stress"),
+                            (Integer) mapResult.get("active")
                     );
                     mapResult.put("tags", userTags);
                     userInfo.put(userId, mapResult);
@@ -266,6 +266,7 @@ public class AdMatchTask implements StreamTask, InitableTask {
             Map<String, Object> userProfile = userInfo.get(userId);
 
             Set<String> userTags = (Set<String>) userProfile.get("tags");
+            System.out.println("User id: " + userId + " userTags: " + userTags);
             String userInterest = (String) userProfile.get("interest");
             String device = (String) userProfile.get("device");
             int travelCount = (Integer) userProfile.get("travel_count");
