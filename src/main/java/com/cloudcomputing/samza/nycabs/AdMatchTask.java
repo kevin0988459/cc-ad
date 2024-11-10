@@ -249,8 +249,9 @@ public class AdMatchTask implements StreamTask, InitableTask {
             }
             Object tagsObj = userProfile.get("tags");
             System.out.println("tagsObj type: " + tagsObj.getClass().getName());
-
             List<String> userTags = (List<String>) userProfile.get("tags");
+            System.out.println("userTags: " + userTags);
+
             String userInterest = (String) userProfile.get("interest");
             String device = (String) userProfile.get("device");
             int travelCount = (Integer) userProfile.get("travel_count");
