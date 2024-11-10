@@ -110,14 +110,6 @@ public class AdMatchTask implements StreamTask, InitableTask {
                 try {
                     Map<String, Object> mapResult = mapper.readValue(rawString, HashMap.class);
                     int userId = (Integer) mapResult.get("userId");
-                    // Determine user tags
-                    Set<String> userTags = determineUserTags(
-                            (Integer) mapResult.get("blood_sugar"),
-                            (Integer) mapResult.get("mood"),
-                            (Integer) mapResult.get("stress"),
-                            (Integer) mapResult.get("active")
-                    );
-                    mapResult.put("tags", userTags);
                     userInfo.put(userId, mapResult);
                 } catch (Exception e) {
                     System.out.println("Error parsing user info:");
@@ -261,9 +253,9 @@ public class AdMatchTask implements StreamTask, InitableTask {
             // Retrieve user profile
             System.out.println("Handle ride request for user id: " + userId);
             Map<String, Object> userProfile = userInfo.get(userId);
-            System.out.println("User id: " + userId + " userProfile: " + userProfile.size());
+            System.out.println("User id: " + userId + " userProfile: " + userProfile);
             if (userProfile == null) {
-                System.err.println("User profile not found for User ID: " + userId);
+                System.out.println("User profile not found for User ID: " + userId);
                 return;
             }
             Set<String> userTags = (Set<String>) userProfile.get("tags");
